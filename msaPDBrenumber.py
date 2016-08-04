@@ -24,25 +24,6 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 
-def usage():
-    """Prints the help message for the script."""
-    print """USAGE:
-
-    NAME
-       msaPDBrenumber.py
-
-    SYNOPSIS
-        msaPDBrenumber.py -a msa.fasta
-                          -p 1abc.pdb
-
-    OPTIONS
-       -a           multiple sequence alignment in fasta format
-       -p           pdb file to renumber
-       -v           be verbose
-       --renumligs  Activate renumbering of ligand chain positions (to 0)
-
-    """
-
 
 def main(verbose=False, msafile=None, pdbfile=None, renumligs=False):
 
@@ -167,6 +148,6 @@ if __name__ == '__main__':
     parser.add_argument('-p', help="Specifiy PDB file", dest="pdbfile", required=True)
     parser.add_argument('--renumligs', help="Renumber ligand chain positions (to 0)", dest="renumligs", action="store_true", default=False)
     args = parser.parse_args()
-    
+
     main(verbose=args.verbose, msafile=args.msafile, pdbfile=args.pdbfile, renumligs=args.renumligs)
 #end
