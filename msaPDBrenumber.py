@@ -13,6 +13,7 @@ from kendrew.toolchain.files import read, fileprefix
 from Bio import AlignIO
 import getopt
 import sys, os
+from argparse import ArgumentParser
 
 from kendrew.toolchain.mp import parallel_fn
 from kendrew.alignLib.Align import Needle
@@ -35,15 +36,15 @@ def usage():
                           -p 1abc.pdb
 
     OPTIONS
-       -a  multiple sequence alignment in fasta format
-       -p   pdb file to renumber
-       -v   be verbose
-    PARAMETERS
+       -a           multiple sequence alignment in fasta format
+       -p           pdb file to renumber
+       -v           be verbose
+       --renumligs  Activate renumbering of ligand chain positions (to 0)
 
     """
 
 
-def main(verbose=False, msafile=None, pdbfile=None):
+def main(verbose=False, msafile=None, pdbfile=None, renumligs=False):
 
     onelettercode = {'ASP':'D', 'GLU':'E', 'ASN':'N', 'GLN':'Q',  'ARG':'R', 'LYS':'K', 'PRO':'P', 'GLY':'G', 'CYS':'C', 'THR':'T', 'SER':'S', 'MET':'M', 'TRP':'W', 'PHE':'F', 'TYR':'Y', 'HIS':'H', 'ALA':'A', 'VAL':'V', 'LEU':'L', 'ILE':'I'}
 
@@ -148,8 +149,8 @@ def main(verbose=False, msafile=None, pdbfile=None):
             index = resid[1]
             if index in newqseqindices:
                 resid[1] = newqseqindices[index]
-            else:
-                resid[1] = 0
+            elif renumligs:
+                 resid[1] = 0
             residue.id = tuple(resid)
 
     # write renumbered PDB file
@@ -160,29 +161,12 @@ def main(verbose=False, msafile=None, pdbfile=None):
 
 # Parse command line options
 if __name__ == '__main__':
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "h?va:p:")
-    except getopt.GetoptError:
-        usage()
-        sys.exit(2)
-    verbose = False
-    msafile = None
-    pdbfile = None
-
-    for opt, arg in opts:
-        if opt == "-h" or opt == "-?":
-            usage()
-            sys.exit(1)
-
-        elif opt == "-v":
-            verbose = True
-        elif opt == "-a":
-            msafile = arg
-            print 'MSA file is: ', msafile
-        elif opt == "-p":
-            pdbfile = arg
-            print 'PDB file is: ', pdbfile
-
-
-    main(verbose=verbose, msafile=msafile, pdbfile=pdbfile)
+    parser = ArgumentParser(description="MSA PDB Renumbering")
+    parser.add_argument('-v', help="Activate verbose mode", dest="verbose", action="store_true", default=False)
+    parser.add_argument('-a', help="Specify MSA file", dest="msafile", required=True)
+    parser.add_argument('-p', help="Specifiy PDB file", dest="pdbfile", required=True)
+    parser.add_argument('--renumligs', help="Renumber ligand chain positions (to 0)", dest="renumligs", action="store_true", default=False)
+    args = parser.parse_args()
+    
+    main(verbose=args.verbose, msafile=args.msafile, pdbfile=args.pdbfile, renumligs=args.renumligs)
 #end
