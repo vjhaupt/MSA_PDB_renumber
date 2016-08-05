@@ -32,7 +32,7 @@ def main(verbose=False, msafile=None, pdbfile=None, renumligs=False):
     wd = os.getcwd()
     msa = AlignIO.read(read(msafile), 'fasta')
     querypdbid = fileprefix(pdbfile)
-    querypdb = PDBParser(PERMISSIVE=1).get_structure(querypdbid, pdbfile)
+    querypdb = PDBParser(PERMISSIVE=1, QUIET=(not verbose)).get_structure(querypdbid, pdbfile)
     #for each chain, get it's sequence
     qseqdicts = dict()
     chains = dict( (chain.get_id(), chain) for chain in querypdb.get_list()[0].get_list() )
@@ -128,7 +128,8 @@ def main(verbose=False, msafile=None, pdbfile=None, renumligs=False):
         for residue in chain.get_list():
             resid = list(residue.get_id())
             index = resid[1]
-            if index in newqseqindices:
+            is_het = len(resid[0].strip()) != 0
+            if index in newqseqindices and not is_het:
                 resid[1] = newqseqindices[index]
             elif renumligs:
                  resid[1] = 0
