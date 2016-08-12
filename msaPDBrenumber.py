@@ -61,16 +61,22 @@ def main(verbose=False, msafile=None, pdbfile=None, renumligs=False):
             msaseq = SeqRecord(alignment.seq, id=alignment.id)
             ids = (qseq.id, msaseq.id)
             ali = Needle(pair=ids,records=(qseq, msaseq), name=ids, confopts={'gapopen':10, 'gapextend':0, 'brief':0}) # wd='/tmp/needle'
-            ali.align()
+            ali.align(force_protein=True)
             seqid = NeedleSingle(outfile=ali.outfile).getResults()['Longest_Identity']
             if seqid > maxid:
                 maxid = seqid
                 maxal = AlignIO.read(ali.outfile, 'emboss')
                 maxmsaseq = msaseq
-        print "Highest seq id is %.2f for:\n%s\n================" % (maxid, str(maxal))
-        qseq = str(maxal[0].seq)
-        tseq = str(maxal[1].seq)
-        msaseq = str(maxmsaseq.seq)
+        try:
+            qseq = str(maxal[0].seq)
+            tseq = str(maxal[1].seq)
+            msaseq = str(maxmsaseq.seq)
+            print "Highest seq id is %.2f for:\n%s\n================" % (maxid, str(maxal))
+        except TypeError:
+            print "No alignment could be generated."
+            continue
+
+
 
         # number letters in the msa sequence
         # get the positions without gaps, this gives the actual positions in tseq
