@@ -13,6 +13,7 @@ from kendrew.toolchain.files import read, fileprefix
 from Bio import AlignIO
 import getopt
 import sys, os
+from argparse import ArgumentParser
 
 from kendrew.toolchain.mp import parallel_fn
 from kendrew.alignLib.Align import Needle
@@ -23,34 +24,15 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from Bio.Alphabet import IUPAC
 
-def usage():
-    """Prints the help message for the script."""
-    print """USAGE:
 
-    NAME
-       msaPDBrenumber.py
-
-    SYNOPSIS
-        msaPDBrenumber.py -a msa.fasta
-                          -p 1abc.pdb
-
-    OPTIONS
-       -a  multiple sequence alignment in fasta format
-       -p   pdb file to renumber
-       -v   be verbose
-    PARAMETERS
-
-    """
-
-
-def main(verbose=False, msafile=None, pdbfile=None):
+def main(verbose=False, msafile=None, pdbfile=None, renumligs=False):
 
     onelettercode = {'ASP':'D', 'GLU':'E', 'ASN':'N', 'GLN':'Q',  'ARG':'R', 'LYS':'K', 'PRO':'P', 'GLY':'G', 'CYS':'C', 'THR':'T', 'SER':'S', 'MET':'M', 'TRP':'W', 'PHE':'F', 'TYR':'Y', 'HIS':'H', 'ALA':'A', 'VAL':'V', 'LEU':'L', 'ILE':'I'}
 
     wd = os.getcwd()
     msa = AlignIO.read(read(msafile), 'fasta')
     querypdbid = fileprefix(pdbfile)
-    querypdb = PDBParser(PERMISSIVE=1).get_structure(querypdbid, pdbfile)
+    querypdb = PDBParser(PERMISSIVE=1, QUIET=(not verbose)).get_structure(querypdbid, pdbfile)
     #for each chain, get it's sequence
     qseqdicts = dict()
     chains = dict( (chain.get_id(), chain) for chain in querypdb.get_list()[0].get_list() )
@@ -79,16 +61,22 @@ def main(verbose=False, msafile=None, pdbfile=None):
             msaseq = SeqRecord(alignment.seq, id=alignment.id)
             ids = (qseq.id, msaseq.id)
             ali = Needle(pair=ids,records=(qseq, msaseq), name=ids, confopts={'gapopen':10, 'gapextend':0, 'brief':0}) # wd='/tmp/needle'
-            ali.align()
+            ali.align(force_protein=True)
             seqid = NeedleSingle(outfile=ali.outfile).getResults()['Longest_Identity']
             if seqid > maxid:
                 maxid = seqid
                 maxal = AlignIO.read(ali.outfile, 'emboss')
                 maxmsaseq = msaseq
-        print "Highest seq id is %.2f for:\n%s\n================" % (maxid, str(maxal))
-        qseq = str(maxal[0].seq)
-        tseq = str(maxal[1].seq)
-        msaseq = str(maxmsaseq.seq)
+        try:
+            qseq = str(maxal[0].seq)
+            tseq = str(maxal[1].seq)
+            msaseq = str(maxmsaseq.seq)
+            print "Highest seq id is %.2f for:\n%s\n================" % (maxid, str(maxal))
+        except TypeError:
+            print "No alignment could be generated."
+            continue
+
+
 
         # number letters in the msa sequence
         # get the positions without gaps, this gives the actual positions in tseq
@@ -146,10 +134,11 @@ def main(verbose=False, msafile=None, pdbfile=None):
         for residue in chain.get_list():
             resid = list(residue.get_id())
             index = resid[1]
-            if index in newqseqindices:
+            is_het = len(resid[0].strip()) != 0
+            if index in newqseqindices and not is_het:
                 resid[1] = newqseqindices[index]
-            else:
-                resid[1] = 0
+            elif renumligs:
+                 resid[1] = 0
             residue.id = tuple(resid)
 
     # write renumbered PDB file
@@ -160,29 +149,12 @@ def main(verbose=False, msafile=None, pdbfile=None):
 
 # Parse command line options
 if __name__ == '__main__':
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "h?va:p:")
-    except getopt.GetoptError:
-        usage()
-        sys.exit(2)
-    verbose = False
-    msafile = None
-    pdbfile = None
+    parser = ArgumentParser(description="MSA PDB Renumbering")
+    parser.add_argument('-v', help="Activate verbose mode", dest="verbose", action="store_true", default=False)
+    parser.add_argument('-a', help="Specify MSA file", dest="msafile", required=True)
+    parser.add_argument('-p', help="Specifiy PDB file", dest="pdbfile", required=True)
+    parser.add_argument('--renumligs', help="Renumber ligand chain positions (to 0)", dest="renumligs", action="store_true", default=False)
+    args = parser.parse_args()
 
-    for opt, arg in opts:
-        if opt == "-h" or opt == "-?":
-            usage()
-            sys.exit(1)
-
-        elif opt == "-v":
-            verbose = True
-        elif opt == "-a":
-            msafile = arg
-            print 'MSA file is: ', msafile
-        elif opt == "-p":
-            pdbfile = arg
-            print 'PDB file is: ', pdbfile
-
-
-    main(verbose=verbose, msafile=msafile, pdbfile=pdbfile)
+    main(verbose=args.verbose, msafile=args.msafile, pdbfile=args.pdbfile, renumligs=args.renumligs)
 #end
